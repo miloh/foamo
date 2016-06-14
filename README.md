@@ -1,5 +1,5 @@
-foma foamcutter of mass appeal 
-==============================
+fomo foamcutter of machining out  
+================================
 
 5 Axis CNC foam cutter with renee wire run by a computer with machinekit
 X1,X2, Y1,Y2, A1
