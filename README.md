@@ -1,11 +1,11 @@
-foma foamcutter of mass appeal
+foma foamcutter of mass appeal 
 ==============================
+
+5 Axis CNC foam cutter with renee wire run by a computer with machinekit
+X1,X2, Y1,Y2, A1
 
 project schematic
 wiring schematic
-
-
-
 
 gEDA Terminology & Description
 ------------------------------
