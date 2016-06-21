@@ -28,7 +28,10 @@ layout-ps = $(patsubst %.pcb, $(REV)-%.pcb.ps, $(pcb-files))
 # $<  is the automatic variable for the target
 .PHONY: list-gedafiles 
 list-gedafiles:
-	#Nothing requested, default goal is to list gedafiles located in the top level directory
+	#Nothing requested, default goal is to list details
+	# project name 
+	@$(foreach asset, $(NAME), echo $(NAME);)
+	# geda files in the top directory level
 	@$(foreach asset, $(pcb-files), echo $(asset);)
 	@$(foreach asset, $(schematic-files), echo $(asset);)
 .PHONY: ps gerbers osh-park-gerbers clean
@@ -105,5 +108,22 @@ hackvana-gerbers.zip : hackvana-gerbers
 	rm -f $@
 	zip -j $@ hackvana-gerbers/*
 	@echo "Be sure to add a version number to the zip file name"
+archive: 
+	#Check if FORCE is set
+ifneq ($(FORCE),YES)
+	#FORCE is not set, proceeding with repo checks...
+	#Check that schematic and pcb content is clean
+ifneq ($(CHECKINS),)
+	$(error error: untracked schematic or pcb content, check with 'git status *pcb *sch', add content or override)
+endif
+	#working state of pcb and sch files is clean
+	#Check for tags in the git repo
+ifeq ($(REV),)
+	$(error error: revision history has no tags to work with, add one and try again)
+endif
+	#Tags found, proceeding
+endif
+	# this target archives the repo from the current tag
+	git archive HEAD --format=zip --prefix=$(REV)/  > $(REV).zip
 clean:
-	rm -f *~ *- *.backup *.new.pcb *.png *.bak *.gbr *.cnc *.ps *{pcb,sch}.pdf
+	rm -f *~ *- *.backup *.new.pcb *.png *.bak *.gbr *.cnc *.ps *{pcb,sch}.pdf *.csv *.xy
