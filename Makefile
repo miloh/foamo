@@ -5,7 +5,7 @@ NAME= foamo
 #
 SHELL=/bin/bash
 SCH=sch
-PCB=pcb
+PCB=pcb-rnd
 SYM=geda-symbols
 FP=gpcb-footprints
 SS=subcircuits
@@ -18,12 +18,14 @@ REV = $(shell git describe --tags --long)
 LONGREV = $(shell git describe --tags --long)
 SHORTREV = $(shell git describe --tags)
 STATUS = $(shell git status -z -uno)
-CHECKINS = $(shell git status --porcelain *.pcb *.sch)
+CHECKINS = $(shell git status --porcelain *.lht *.pcb *.sch)
 
 pcb-files = $(wildcard *.pcb)
+pcb-rnd-files = $(patsubst project.lht,,$(wildcard *.lht))
 schematic-files = $(wildcard *.sch)
-schematic-ps = $(patsubst %.sch, $(REV)-%.sch.ps, $(schematic-files)) 
-layout-ps = $(patsubst %.pcb, $(REV)-%.pcb.ps, $(pcb-files)) 
+schematic-ps = $(patsubst %.sch, $(SHORTREV)-%.sch.ps, $(schematic-files))
+pcb-layout-ps = $(patsubst %.pcb, $(SHORTREV)-%.pcb.ps, $(pcb-files))
+pcb-rnd-layout-ps = $(patsubst %.lht, $(SHORTREV)-%.lht.ps, $(pcb-rnd-files))
 # $@  is the automatic variable for the prerequisite
 # $<  is the automatic variable for the target
 .PHONY: list-gedafiles 
@@ -33,6 +35,7 @@ list-gedafiles:
 	@$(foreach asset, $(NAME), echo $(NAME);)
 	# geda files in the top directory level
 	@$(foreach asset, $(pcb-files), echo $(asset);)
+	@$(foreach asset, $(pcb-rnd-files), echo $(asset);)
 	@$(foreach asset, $(schematic-files), echo $(asset);)
 .PHONY: ps gerbers osh-park-gerbers clean
 ps:
@@ -41,43 +44,47 @@ ifneq ($(FORCE),YES)
 	#FORCE is not set, proceeding with repo checks...
 	#Check that schematic and pcb content is clean
 ifneq ($(CHECKINS),)
-	$(error error: untracked schematic or pcb content, check with 'git status *pcb *sch', add content or override)
+	$(error error: untracked schematic or pcb content, check with 'git status *.lht *.pcb *.sch', add content or override)
 endif
 	#working state of pcb and sch files is clean
 	#Check for tags in the git repo
-ifeq ($(REV),)
+ifeq ($(LONGREV),)
 	$(error error: revision history has no tags to work with, add one and try again)
 endif
 	#Tags found, proceeding
 endif
 	# the following target exports postscript assets from *.sch and *.pcb files in HEAD using a tags 
 	# exporting layout as postscript using pcb...
-	@$(foreach asset, $(pcb-files), sed -i "s/\$$ver=/$(SHORTREV)/" $(asset); pcb -x ps --psfile $(REV)-$(asset).$@ $(asset); git checkout -- $(asset);) 
+	@$(foreach asset, $(pcb-files), sed -i "s/\$$ver=/$(SHORTREV)/" $(asset); $(PCB) -x ps --psfile $(SHORTREV)-$(asset).$@ $(asset); git checkout -- $(asset);) 
+	@$(foreach asset, $(pcb-rnd-files), sed -i "s/\$$ver=/$(SHORTREV)/" $(asset); $(PCB) -x ps --psfile $(SHORTREV)-$(asset).$@ $(asset); git checkout -- $(asset);)
 	# pcb layout to postscript export complete
 	# processing titleblock keywords, exporting schematic as postscript using gaf, and restoring  HEAD
 	# DANGER, we will discard changes to the schematic file in the working directory now.  
 	# This assumes that the working dir was clean before make was called and should be rewritten as an atomic operation
-	$(foreach asset, $(schematic-files), sed -i "s/\(date=\).*/\1$\$(DATE)/" $(asset);sed -i "s/\(auth=\).*/\1$\$(AUTHOR)/" $(asset); sed -i "s/\(fname=\).*/\1$\$(asset)/" $(asset); sed -i "s/\(rev=\).*/\1$\$(REV) $\$(TAG)/" $(asset); gaf export -o $(REV)-$(asset).$@  -- $(asset); git checkout -- $(asset);)
+	$(foreach asset, $(schematic-files), sed -i "s/\(date=\).*/\1$\$(DATE)/" $(asset); sed -i "s/\(auth=\).*/\1$\$(AUTHOR)/" $(asset); sed -i "s/\(fname=\).*/\1$\$(asset)/" $(asset); sed -i "s/\(rev=\).*/\1$\$(SHORTREV) $\$(TAG)/" $(asset); gaf export -c -o $(SHORTREV)-$(asset).$@  -- $(asset); git checkout -- $(asset);)
 	# gschem schematic to postscript export complete
 #PDF EXPORT
 pdf: ps
 	@$(foreach asset, $(schematic-ps), ps2pdf $(asset);)
-	@$(foreach asset, $(layout-ps), ps2pdf $(asset);)
+	@$(foreach asset, $(pcb-layout-ps), ps2pdf $(asset);)
+	@$(foreach asset, $(pcb-rnd-layout-ps), ps2pdf $(asset);)
 	# pdf exported
 #BOM export
 pcb-bom:  $(NAME).pcb
-	pcb -x bom --bomfile $(NAME)-pcb-bom.csv $<
+	$(PCB) -x bom --bomfile $(SHORTREV)-$(NAME)-pcb-bom.csv $<
 # assembly bom is column seperated
 gnetlist-bom: $(NAME).sch
-	gnetlist -g bom $< -o $(NAME)-assembly-bom.csv $<
+	gnetlist -g bom $< -o $(SHORTREV)-$(NAME)-assembly-bom.csv $<
 # GERBERS (props to https://github.com/bgamari)
-gerbers: $(NAME).pcb 
+gerbers: $(NAME).lht
 	rm -Rf gerbers
 	mkdir gerbers
 	# use shell to edit version string with values from 'git describe'
 	$(foreach asset, $(pcb-files), sed -i "s/\$$ver=/$(SHORTREV)/" $(asset);)
-	pcb -x gerber --gerberfile gerbers/$(NAME) $<
+	$(foreach asset, $(pcb-rnd-files), sed -i "s/\$$ver=/$(SHORTREV)/" $(asset);)
+	$(PCB) -x gerber --gerberfile gerbers/$(NAME) $<
 	$(foreach asset, $(pcb-files), git checkout -- $(asset);)
+	$(foreach asset, $(pcb-rnd-files), git checkout -- $(asset);)
 osh-park-gerbers: gerbers
 	rm -Rf $@
 	mkdir -p $@
@@ -92,7 +99,7 @@ osh-park-gerbers: gerbers
 
 osh-park-gerbers.zip : osh-park-gerbers
 	rm -f $@
-	zip -j $@ osh-park-gerbers/*
+	zip -j $@ $(SHORTREV)-$(NAME)-osh-park-gerbers/*
 hackvana-gerbers : gerbers
 	rm -Rf $@
 	mkdir -p $@
@@ -114,16 +121,16 @@ ifneq ($(FORCE),YES)
 	#FORCE is not set, proceeding with repo checks...
 	#Check that schematic and pcb content is clean
 ifneq ($(CHECKINS),)
-	$(error error: untracked schematic or pcb content, check with 'git status *pcb *sch', add content or override)
+	$(error error: untracked schematic or pcb content, check with 'git status *.lht *.pcb *.sch', add content or override)
 endif
 	#working state of pcb and sch files is clean
 	#Check for tags in the git repo
-ifeq ($(REV),)
+ifeq ($(SHORTREV),)
 	$(error error: revision history has no tags to work with, add one and try again)
 endif
 	#Tags found, proceeding
 endif
 	# this target archives the repo from the current tag
-	git archive HEAD --format=zip --prefix=$(REV)/  > $(REV).zip
+	git archive HEAD --format=zip --prefix=$(SHORTREV)-$(NAME)/ > $(SHORTREV)-$(NAME).zip
 clean:
-	rm -f *~ *- *.backup *.new.pcb *.png *.bak *.gbr *.cnc *.ps *{pcb,sch}.pdf *.csv *.xy
+	rm -f *~ *- *.backup *.new.pcb *.png *.bak *.gbr *.cnc *.{pcb,sch,lht}.ps *.{pcb,sch,lht}.pdf *.csv *.xy
