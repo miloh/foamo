@@ -1,1 +1,2 @@
 (component-library "geda-symbols")
+(component-library "local-symbols")

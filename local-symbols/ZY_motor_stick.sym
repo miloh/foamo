@@ -1,0 +1,28 @@
+v 20140308 2
+B 1000 1100 2500 5500 3 0 1 3 100 100 0 -1 -1 -1 -1 -1
+C 3075 1475 1 90 0 2phase-stepper-1.sym
+{
+T 675 1675 5 10 0 0 90 0 1
+device=2PHASE-STEPPER-4LEADS
+T 1425 1775 5 10 1 1 180 0 1
+refdes=U?
+}
+C 3100 4100 1 90 0 2phase-stepper-1.sym
+{
+T 800 4900 5 10 0 0 90 0 1
+device=2PHASE-STEPPER-4LEADS
+T 1500 4300 5 10 1 1 180 0 1
+refdes=U?
+}
+T 1200 3500 9 12 1 0 0 0 1
+Y1
+T 1200 6200 9 12 1 0 0 0 1
+Z1
+T 1800 6400 9 12 1 0 0 0 1
+Z Y Motion Stick
+T 1000 1100 8 10 0 1 0 0 1
+author=R. Miloh Alexander
+T 543 697 8 10 1 1 0 0 1
+description=Two Axis T stick motion component
+T 543 897 8 10 1 1 0 0 1
+footprint=none
