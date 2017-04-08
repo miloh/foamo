@@ -1,4 +1,4 @@
-fomo foamcutter of machining out  
+foamo a 5 axis cnc foamcutter  
 ================================
 
 5 Axis CNC foam cutter with renee wire run by a computer with machinekit
